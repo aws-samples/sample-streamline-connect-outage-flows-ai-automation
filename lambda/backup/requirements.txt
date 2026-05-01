@@ -1,0 +1,4 @@
+# Dependencies for Backup Lambda
+boto3>=1.34.0
+aws-lambda-powertools>=2.30.0
+aws-xray-sdk>=2.12.0
