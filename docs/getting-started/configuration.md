@@ -34,7 +34,7 @@ Before deploying the CDK stack, create a Secrets Manager secret containing the s
 ```bash
 aws secretsmanager create-secret \
   --name supervisor-ai-agent-pin \
-  --secret-string '{"pin":"YOUR_6_DIGIT_PIN","allowlist":["+1234567890","+0987YOUR_PIN"]}' \
+  --secret-string '{"pin":"YOUR_6_DIGIT_PIN","allowlist":["+1234567890","+0987654321"]}' \
   --profile your-aws-profile --region us-east-1
 ```
 

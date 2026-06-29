@@ -279,7 +279,7 @@ After CDK deployment, verify the agent was created successfully:
 aws qconnect get-ai-agent \
   --assistant-id <ASSISTANT_ID> \
   --ai-agent-id <AGENT_ID> \
-  --profile your-aws-profile \
+  --profile joysl-auto-tfc-Admin \
   --region us-east-1
 ```
 
@@ -292,7 +292,7 @@ aws qconnect update-ai-agent \
   --assistant-id <ASSISTANT_ID> \
   --ai-agent-id <AGENT_ID> \
   --visibility-status PUBLISHED \
-  --profile your-aws-profile \
+  --profile joysl-auto-tfc-Admin \
   --region us-east-1
 ```
 
@@ -382,12 +382,12 @@ Monitor AI Agent conversations and tool invocations:
 ```bash
 # Agent Manager Lambda logs
 aws logs tail /aws/lambda/supervisor-ai-agent-manager --follow \
-  --profile your-aws-profile \
+  --profile joysl-auto-tfc-Admin \
   --region us-east-1
 
 # Restore Lambda logs
 aws logs tail /aws/lambda/supervisor-ai-agent-restore --follow \
-  --profile your-aws-profile \
+  --profile joysl-auto-tfc-Admin \
   --region us-east-1
 ```
 
@@ -406,7 +406,7 @@ aws logs tail /aws/lambda/supervisor-ai-agent-restore --follow \
 # Check Lambda permissions
 aws lambda get-policy \
   --function-name supervisor-ai-agent-manager \
-  --profile your-aws-profile \
+  --profile joysl-auto-tfc-Admin \
   --region us-east-1
 ```
 
@@ -474,7 +474,7 @@ After deploying the CDK stack, retrieve the agent information:
 aws cloudformation describe-stacks \
   --stack-name SupervisorAIAgentStack \
   --query 'Stacks[0].Outputs[?contains(OutputKey, `SupervisorAI`)]' \
-  --profile your-aws-profile \
+  --profile joysl-auto-tfc-Admin \
   --region us-east-1
 ```
 

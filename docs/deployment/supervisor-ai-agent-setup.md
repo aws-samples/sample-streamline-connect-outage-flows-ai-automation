@@ -37,12 +37,31 @@ Flow module tools are the bridge between the AI agent and Lambda functions. Each
 
 1. Open Connect admin website → **Routing** → **Flows** → **Modules** tab
 2. For each tool below, click **Create flow module** → **Create module as tool**
-3. Add an **Invoke Lambda Function** block:
+3. Configure **Input Schema** (module-level settings) — define parameters the AI agent passes to the tool:
+   - For `validate_pin`: `{"type":"object","properties":{"pin":{"type":"string","description":"6-digit PIN"}},"required":["pin"]}`
+   - For other tools: `{"type":"object"}` (no dynamic input needed — operation is static)
+4. Configure **Output Schema** (module-level settings) — define what the tool returns to the AI agent:
+   - For `validate_pin`:
+     ```json
+     {"type":"object","properties":{"authenticated":{"type":"string"},"message":{"type":"string"}}}
+     ```
+   - For all other tools (list_agents, disable_intent, etc.):
+     ```json
+     {"type":"object","properties":{"success":{"type":"string"},"message":{"type":"string"}}}
+     ```
+5. Add an **Invoke Lambda Function** block:
    - Lambda ARN: Use `AgentManagerLambdaArn` (except `restore_agent_prompt` which uses `RestoreLambdaArn`, and `validate_pin` which uses `AuthLambdaArn`)
-   - Add Lambda invocation attribute: `operation` = `<operation_name>`
+   - Add Lambda invocation attribute: `operation` = `<operation_name>` (Set manually)
+   - For `validate_pin`: Add `pin` = `$.Modules.Input.pin` (Set manually)
    - Response validation: `STRING_MAP`
-4. Connect: Lambda → **End Flow Module Execution** (success and error branches)
-5. **Publish** the module
+6. Configure the **End Flow Module Execution / Return** block:
+   - Map output fields to Lambda response using JSONPath referencing the **External** namespace (where Lambda responses live):
+     - For `validate_pin`: `authenticated` → `$.External.authenticated`, `message` → `$.External.message`
+     - For all other tools: `success` → `$.External.success`, `message` → `$.External.message`
+   - **Important**: Without this mapping, the AI agent receives "Flow module execution returned unknown" even if the Lambda succeeds
+7. **Publish** the module
+
+> **After publishing**: Remove the tool from the AI agent, re-add it selecting the new version, then publish the agent. The agent caches the tool version reference.
 
 | Tool Module Name | Operation | Lambda |
 |---|---|---|

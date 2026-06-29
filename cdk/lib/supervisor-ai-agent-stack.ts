@@ -91,14 +91,6 @@ export class SupervisorAIAgentStack extends cdk.Stack {
       description: 'Email address for CloudWatch alarm notifications',
     });
 
-    // Resources will be added in subsequent tasks:
-    // - S3 bucket for backups and audit logs
-    // - Secrets Manager secret for supervisor PIN
-    // - IAM roles for Lambda functions
-    // - Lambda functions (auth, agent_manager, backup, restore, tester)
-    // - CloudWatch log groups and alarms
-    // - SNS topic for notifications
-
     // ========================================
     // KMS Key for Backup Encryption
     // ========================================
@@ -467,6 +459,7 @@ export class SupervisorAIAgentStack extends cdk.Stack {
         BACKUP_LAMBDA_ARN: `arn:aws:lambda:${this.region}:${this.account}:function:supervisor-ai-agent-backup`,
         TESTER_LAMBDA_ARN: `arn:aws:lambda:${this.region}:${this.account}:function:supervisor-ai-agent-tester`,
         CONNECT_INSTANCE_ARN: `arn:aws:connect:${this.region}:${this.account}:instance/${connectInstanceId.valueAsString}`,
+        PRODUCTION_AGENT_IDS: cdk.Fn.join(',', productionAgentIds.valueAsList),
         PIN_ATTEMPTS_TABLE: pinAttemptsTable.tableName,
         SIGNING_KEY_SECRET_ARN: signingKeySecret.secretArn,
         LOG_LEVEL: 'INFO',

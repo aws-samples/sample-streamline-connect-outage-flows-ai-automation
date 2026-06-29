@@ -148,13 +148,12 @@ class AuditLogger:
             # Convert to JSON
             audit_json = json.dumps(audit_entry, indent=2)
             
-            # Write to S3 with SSE-S3 encryption
+            # Write to S3 (bucket default KMS encryption applies)
             self.s3_client.put_object(
                 Bucket=self.bucket_name,
                 Key=s3_key,
                 Body=audit_json.encode('utf-8'),
                 ContentType='application/json',
-                ServerSideEncryption='AES256',
                 Metadata={
                     'operation': audit_entry['operation'],
                     'agent-id': audit_entry['agentId'],

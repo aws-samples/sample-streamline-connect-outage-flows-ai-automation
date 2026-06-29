@@ -73,11 +73,18 @@ class AuthenticationHandler(BaseLambdaHandler):
     
     def _is_phone_validation_event(self, event: Dict[str, Any]) -> bool:
         """Check if event is a phone validation request from Contact Flow."""
+        # Flow module MCP tool calls also have Details.ContactData but include operation in Parameters
+        if self._is_direct_pin_event(event):
+            return False
         return 'Details' in event and 'ContactData' in event['Details']
     
     def _is_direct_pin_event(self, event: Dict[str, Any]) -> bool:
-        """Check if event is a direct PIN validation from MCP tool."""
-        return event.get('operation') == 'validate_pin'
+        """Check if event is a PIN validation from MCP tool (direct or via flow module)."""
+        if event.get('operation') == 'validate_pin':
+            return True
+        # Flow module format: operation is under Details.Parameters
+        params = event.get('Details', {}).get('Parameters', {})
+        return params.get('operation') == 'validate_pin'
     
     def _handle_phone_validation(
         self,
@@ -128,8 +135,10 @@ class AuthenticationHandler(BaseLambdaHandler):
         context: LambdaContext
     ) -> Dict[str, Any]:
         """Handle direct PIN validation from AI agent MCP tool."""
-        provided_pin = str(event.get('pin', ''))
-        phone_number = event.get('phoneNumber', 'MCP_TOOL')
+        # Extract PIN from either top-level or Details.Parameters (flow module format)
+        params = event.get('Details', {}).get('Parameters', event)
+        provided_pin = str(params.get('pin', ''))
+        phone_number = params.get('phoneNumber', 'MCP_TOOL')
         
         self.logger.info(
             "Processing direct PIN validation",

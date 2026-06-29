@@ -278,8 +278,8 @@ aws s3 ls s3://supervisor-ai-agent-backups-ACCOUNT_ID-REGION/audit-logs/2025/03/
 **Secret Structure**:
 ```json
 {
-  "pin": "YOUR_PIN",
-  "allowlist": ["+1234567890", "+0987YOUR_PIN"]
+  "pin": "654321",
+  "allowlist": ["+12018442861", "+14155551234"]
 }
 ```
 
@@ -299,7 +299,7 @@ aws secretsmanager get-secret-value \
 # Update PIN value
 aws secretsmanager update-secret \
   --secret-id arn:aws:secretsmanager:us-east-1:ACCOUNT_ID:secret:supervisor-ai-agent-pin-AbCdEf \
-  --secret-string '{"pin":"YOUR_PIN"}' \
+  --secret-string '{"pin":"654321"}' \
   --profile your-aws-profile \
   --region us-east-1
 ```

@@ -121,7 +121,7 @@ The token is stored in DynamoDB with a 15-minute TTL. All mutating operations on
 
 The phone allowlist is loaded from Secrets Manager (same secret as PIN) at Lambda initialization, not from environment variables. Secret format:
 ```json
-{"pin": "YOUR_PIN", "allowlist": ["+1234567890"]}
+{"pin": "654321", "allowlist": ["+12018442861"]}
 ```
 
 ### Environment Variables

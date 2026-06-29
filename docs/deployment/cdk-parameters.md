@@ -35,7 +35,7 @@ This document provides a comprehensive reference for all CDK stack parameters, t
 
 **Format**: UUID (36 characters)
 - Pattern: `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx`
-- Example: `87YOUR_PIN-4321-4321-4321-210987YOUR_PIN`
+- Example: `87654321-4321-4321-4321-210987654321`
 
 **How to Find**:
 1. Open AWS Console → Amazon Connect
@@ -61,8 +61,8 @@ This document provides a comprehensive reference for all CDK stack parameters, t
 **Secret JSON Format**:
 ```json
 {
-  "pin": "YOUR_PIN",
-  "allowlist": ["+1234567890", "+0987YOUR_PIN"]
+  "pin": "654321",
+  "allowlist": ["+12018442861", "+14155551234"]
 }
 ```
 
@@ -134,7 +134,7 @@ aws secretsmanager create-secret \
 ```json
 {
   "connectInstanceId": "12345678-1234-1234-1234-123456789012",
-  "qConnectAssistantId": "87YOUR_PIN-4321-4321-4321-210987YOUR_PIN",
+  "qConnectAssistantId": "87654321-4321-4321-4321-210987654321",
   "SupervisorPinSecretArn": "arn:aws:secretsmanager:us-east-1:123456789012:secret:supervisor-ai-agent-pin-AbCdEf",
   "notificationEmail": "ops-team@example.com",
   "productionAgentIds": "agent-id-1,agent-id-2"
@@ -165,7 +165,7 @@ cdk deploy --profile your-aws-profile --region us-east-1
 cd cdk
 cdk deploy \
   -c connectInstanceId=12345678-1234-1234-1234-123456789012 \
-  -c qConnectAssistantId=87YOUR_PIN-4321-4321-4321-210987YOUR_PIN \
+  -c qConnectAssistantId=87654321-4321-4321-4321-210987654321 \
   -c SupervisorPinSecretArn="arn:aws:secretsmanager:us-east-1:123456789012:secret:supervisor-ai-agent-pin-AbCdEf" \
   -c notificationEmail="ops-team@example.com" \
   -c productionAgentIds="agent-id-1,agent-id-2" \
@@ -193,7 +193,7 @@ cdk deploy \
 ```bash
 # Set environment variables
 export CDK_CONNECT_INSTANCE_ID="12345678-1234-1234-1234-123456789012"
-export CDK_QCONNECT_ASSISTANT_ID="87YOUR_PIN-4321-4321-4321-210987YOUR_PIN"
+export CDK_QCONNECT_ASSISTANT_ID="87654321-4321-4321-4321-210987654321"
 export CDK_SUPERVISOR_PIN_SECRET_ARN="arn:aws:secretsmanager:us-east-1:123456789012:secret:supervisor-ai-agent-pin-AbCdEf"
 export CDK_NOTIFICATION_EMAIL="ops-team@example.com"
 export CDK_PRODUCTION_AGENT_IDS="agent-id-1,agent-id-2"
@@ -230,7 +230,7 @@ aws ssm put-parameter \
 
 aws ssm put-parameter \
   --name /supervisor-ai-agent/qConnectAssistantId \
-  --value "87YOUR_PIN-4321-4321-4321-210987YOUR_PIN" \
+  --value "87654321-4321-4321-4321-210987654321" \
   --type String \
   --profile your-aws-profile \
   --region us-east-1
@@ -294,7 +294,7 @@ cdk synth --profile your-aws-profile --region us-east-1
 ```json
 {
   "connectInstanceId": "12345678-1234-1234-1234-123456789012",
-  "qConnectAssistantId": "87YOUR_PIN-4321-4321-4321-210987YOUR_PIN",
+  "qConnectAssistantId": "87654321-4321-4321-4321-210987654321",
   "SupervisorPinSecretArn": "arn:aws:secretsmanager:us-east-1:123456789012:secret:supervisor-ai-agent-pin-AbCdEf"
 }
 ```
@@ -309,7 +309,7 @@ cdk synth --profile your-aws-profile --region us-east-1
 ```json
 {
   "connectInstanceId": "12345678-1234-1234-1234-123456789012",
-  "qConnectAssistantId": "87YOUR_PIN-4321-4321-4321-210987YOUR_PIN",
+  "qConnectAssistantId": "87654321-4321-4321-4321-210987654321",
   "SupervisorPinSecretArn": "arn:aws:secretsmanager:us-east-1:123456789012:secret:supervisor-ai-agent-pin-AbCdEf",
   "notificationEmail": "dev-team@example.com"
 }
@@ -324,7 +324,7 @@ cdk synth --profile your-aws-profile --region us-east-1
 ```json
 {
   "connectInstanceId": "12345678-1234-1234-1234-123456789012",
-  "qConnectAssistantId": "87YOUR_PIN-4321-4321-4321-210987YOUR_PIN",
+  "qConnectAssistantId": "87654321-4321-4321-4321-210987654321",
   "SupervisorPinSecretArn": "arn:aws:secretsmanager:us-east-1:123456789012:secret:supervisor-ai-agent-pin-AbCdEf",
   "notificationEmail": "ops-team@example.com,oncall@example.com",
   "productionAgentIds": "prod-agent-1,prod-agent-2,prod-agent-3"

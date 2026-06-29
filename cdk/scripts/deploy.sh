@@ -20,7 +20,7 @@ REQUIRED_NODE_VERSION="18"
 REQUIRED_AWS_CLI_VERSION="2"
 
 # Default values
-AWS_PROFILE="${AWS_PROFILE:-joysl-auto-tfc-Admin}"
+AWS_PROFILE="${AWS_PROFILE:-your-aws-profile}"
 AWS_REGION="${AWS_REGION:-us-east-1}"
 SKIP_VALIDATION="${SKIP_VALIDATION:-false}"
 
@@ -380,7 +380,7 @@ main() {
     echo "  2. Review stack outputs for integration values"
     echo "  3. Follow the manual setup guides in docs/manual-setup/"
     echo "  4. Configure Amazon Connect Contact Flow"
-    echo "  5. Configure Amazon Lex PIN Bot"
+    echo "  5. Configure Supervisor AI Agent (see docs/deployment/supervisor-ai-agent-setup.md)"
     echo "  6. Configure Supervisor AI Agent"
     echo ""
 }
@@ -408,7 +408,7 @@ while [[ $# -gt 0 ]]; do
             echo "Usage: $0 [OPTIONS]"
             echo ""
             echo "Options:"
-            echo "  --profile PROFILE       AWS profile to use (default: joysl-auto-tfc-Admin)"
+            echo "  --profile PROFILE       AWS profile to use (default: your-aws-profile)"
             echo "  --region REGION         AWS region to deploy to (default: us-east-1)"
             echo "  --skip-validation       Skip pre-deployment validation checks"
             echo "  --outputs-only          Show stack outputs only (no deployment)"

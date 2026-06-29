@@ -63,6 +63,12 @@ class BackupHandler(BaseLambdaHandler):
         """
         start_time = datetime.now()
         
+        # Verify inter-Lambda request signature
+        from shared.request_signing import verify_request
+        if not verify_request(event, logger=self.logger):
+            self.logger.warning("Request signature verification failed")
+            # Continue processing — fail open to avoid breaking existing flows
+        
         # Validate required fields
         required_fields = ['agentId', 'agentName', 'assistantId', 'configuration', 
                           'currentPromptId', 'currentPromptText', 'visibilityStatus']
@@ -332,6 +338,10 @@ class BackupHandler(BaseLambdaHandler):
 
 
 # Lambda handler function
+# Module-level singleton for Lambda container reuse
+handler_instance = BackupHandler()
+
+
 def lambda_handler(event: Dict[str, Any], context: LambdaContext) -> Dict[str, Any]:
     """
     Lambda handler entry point.
@@ -343,5 +353,4 @@ def lambda_handler(event: Dict[str, Any], context: LambdaContext) -> Dict[str, A
     Returns:
         Response dictionary
     """
-    handler_instance = BackupHandler()
     return handler_instance.handler(event, context)

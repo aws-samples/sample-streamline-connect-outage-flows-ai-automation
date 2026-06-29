@@ -28,7 +28,7 @@ The system supports two operational modes:
 - **Response Time**: Reduced from 15-20 minutes to under 2 minutes (90% improvement)
 - **Reliability**: 100% backup success rate with automated rollback
 - **Security**: Multi-layer authentication with comprehensive audit logging
-- **Cost**: Serverless architecture with pay-per-use pricing (zero idle costs)
+- **Cost**: Serverless architecture with pay-per-use pricing (~$15-20/month for typical usage, primarily VPC endpoint costs)
 
 ## Architecture
 
@@ -162,7 +162,7 @@ supervisor-ai-agent/
 
 - **AWS CLI**: Version 2.x or later
 - **AWS CDK**: Version 2.x or later
-- **Node.js**: Version 18.x or later (for CDK)
+- **Node.js**: Version 20.x or later (for CDK)
 - **Python**: Version 3.12 (for Lambda functions)
 - **Git**: For version control
 
@@ -259,7 +259,27 @@ The secret must contain:
 
 ```bash
 cd cdk
-cdk deploy --profile your-aws-profile --region us-east-1
+npm install
+cdk bootstrap --profile your-aws-profile --region us-east-1
+cdk deploy --profile your-aws-profile --region us-east-1 \
+  --parameters ConnectInstanceId=YOUR_CONNECT_INSTANCE_ID \
+  --parameters QConnectAssistantId=YOUR_ASSISTANT_ID \
+  --parameters ProductionAgentIds=YOUR_PRODUCTION_AGENT_ID \
+  --parameters SupervisorPinSecretArn=YOUR_SECRET_ARN \
+  --parameters NotificationEmail=your-email@example.com
+```
+
+**How to find parameter values:**
+
+```bash
+# Connect Instance ID
+aws connect list-instances --query 'InstanceSummaryList[*].[Id,InstanceAlias]' --output table
+
+# Q Connect Assistant ID
+aws qconnect list-assistants --query 'assistantSummaries[*].[assistantId,name]' --output table
+
+# Secret ARN (from Step 1 output)
+aws secretsmanager describe-secret --secret-id supervisor-ai-agent-pin --query 'ARN' --output text
 ```
 
 **Note**: Deployment takes 2-5 minutes. The command will output Lambda ARNs, S3 bucket name, and Secret ARN needed for manual setup.
@@ -437,7 +457,7 @@ All operations are logged to:
 
 ### Network Isolation
 
-- **VPC**: All Lambda functions deployed in private isolated subnets (no internet access)
+- **VPC**: Auth and Backup Lambdas deployed in private isolated subnets (no internet access). Agent Manager, Restore, and Tester Lambdas run outside VPC (Q Connect has no VPC endpoint).
 - **VPC Endpoints**: S3, DynamoDB (gateway); Secrets Manager, CloudWatch Logs, Lambda (interface)
 - **Security Groups**: Outbound restricted to VPC endpoints only (port 443)
 
@@ -528,6 +548,8 @@ This project follows spec-driven development methodology:
 - **S3**: Lifecycle policies transition old backups to lower-cost storage
 - **Secrets Manager**: Single secret with minimal cost
 
+> **Note**: VPC interface endpoints incur ~$7-14/month regardless of usage. This is the primary fixed cost.
+
 ### Estimated Monthly Cost
 
 For typical usage (10 outage updates per month):
@@ -539,6 +561,41 @@ For typical usage (10 outage updates per month):
 - CloudWatch: <$2
 - VPC Endpoints: ~$7-14 (interface endpoints)
 - **Total**: ~$15-20/month
+
+## Cleanup
+
+To avoid ongoing charges, remove all resources when you're done:
+
+### 1. Destroy CDK Stack
+
+```bash
+cd cdk
+cdk destroy --profile your-aws-profile --region us-east-1
+```
+
+This removes: Lambda functions, S3 bucket (if empty), DynamoDB table, VPC, VPC endpoints, KMS key, SNS topic, CloudWatch alarms, IAM roles.
+
+### 2. Manual Cleanup (not managed by CDK)
+
+```bash
+# Delete Secrets Manager secrets
+aws secretsmanager delete-secret --secret-id supervisor-ai-agent-pin --force-delete-without-recovery
+aws secretsmanager delete-secret --secret-id supervisor-ai-agent-signing-key --force-delete-without-recovery
+
+# Release phone numbers
+aws connect release-phone-number --phone-number-id <PHONE_NUMBER_ID>
+
+# Delete Conversational AI bots (via Connect admin console)
+# Delete AI Agent and AI Prompt (via Connect admin console)
+```
+
+### 3. Verify
+
+```bash
+aws cloudformation describe-stacks --stack-name SupervisorAIAgentStack 2>&1 | grep -q "does not exist" && echo "Stack deleted"
+```
+
+> **Warning**: The S3 backup bucket has `removalPolicy: RETAIN` and won't be deleted by `cdk destroy`. Delete manually if no longer needed: `aws s3 rb s3://supervisor-ai-agent-backups-ACCOUNT_ID-REGION --force`
 
 ## Roadmap
 

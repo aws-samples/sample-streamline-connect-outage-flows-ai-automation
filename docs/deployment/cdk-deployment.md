@@ -12,7 +12,7 @@ This guide provides comprehensive instructions for deploying the Supervisor AI A
 
 ### Required Software
 
-1. **Node.js 18.x or higher**
+1. **Node.js 20.x or higher**
    - Download from: https://nodejs.org/
    - Verify: `node --version`
 
@@ -180,7 +180,7 @@ The stack accepts the following parameters:
 | Parameter | Description | Format | Example |
 |-----------|-------------|--------|---------|
 | `connectInstanceId` | Amazon Connect instance ID | UUID | `12345678-1234-1234-1234-123456789012` |
-| `qConnectAssistantId` | Amazon Q in Connect assistant ID | UUID | `87YOUR_PIN-4321-4321-4321-210987YOUR_PIN` |
+| `qConnectAssistantId` | Amazon Q in Connect assistant ID | UUID | `87654321-4321-4321-4321-210987654321` |
 
 ### Optional Parameters
 
@@ -323,9 +323,9 @@ aws cloudformation describe-stacks \
 
 After CDK deployment completes, you must manually configure the conversational resources:
 
-### 1. Amazon Lex PIN Bot
+### 1. Supervisor AI Agent Setup
 
-Follow the guide: `docs/manual-setup/lex-pin-bot-configuration.md`
+Follow the guide: `docs/deployment/supervisor-ai-agent-setup.md`. PIN validation is handled by the AI agent via MCP tool (no separate Lex bot needed).
 
 **Key Integration Points:**
 - Lambda fulfillment: Use `AuthenticationLambdaArn` from stack outputs
@@ -448,7 +448,7 @@ Solution: Ensure your AWS credentials have administrator access or required perm
 
 If the deployment script reports validation failures:
 
-1. **Node.js version too old**: Upgrade to Node.js 18.x or higher
+1. **Node.js version too old**: Upgrade to Node.js 20.x or higher
 2. **AWS CLI not found**: Install AWS CLI v2
 3. **AWS credentials invalid**: Run `aws configure --profile your-aws-profile`
 4. **Python 3.12 not found**: Install Python 3.12
@@ -494,7 +494,7 @@ If deployment fails:
 
 ### Data Protection
 
-- **Encryption at Rest**: S3 (SSE-S3), Secrets Manager (KMS)
+- **Encryption at Rest**: S3 (SSE-KMS (customer-managed key)), Secrets Manager (KMS)
 - **Encryption in Transit**: TLS 1.2+ for all AWS API calls
 - **Audit Logs**: All operations logged to S3 and CloudWatch
 
@@ -525,7 +525,7 @@ Estimated monthly costs (based on moderate usage):
 After successful deployment:
 
 1. ✅ Review stack outputs and note integration values
-2. ✅ Configure Amazon Lex PIN Bot (see `docs/manual-setup/lex-pin-bot-configuration.md`)
+2. ✅ Configure Supervisor AI Agent (see `docs/deployment/supervisor-ai-agent-setup.md`)
 3. ✅ Configure Amazon Connect Contact Flow (see `docs/manual-setup/contact-flow-configuration.md`)
 4. ✅ Configure Supervisor AI Agent (see `docs/manual-setup/supervisor-ai-agent-setup.md`)
 5. ✅ Test the complete workflow with a test call
@@ -537,7 +537,7 @@ After successful deployment:
 
 - **CDK Configuration Guide**: `docs/manual-setup/supervisor-ai-agent-cdk-configuration.md`
 - **Contact Flow Setup**: `docs/manual-setup/contact-flow-configuration.md`
-- **Lex Bot Setup**: `docs/manual-setup/lex-pin-bot-configuration.md`
+- **AI Agent Setup**: `docs/deployment/supervisor-ai-agent-setup.md`
 - **Supervisor AI Agent Setup**: `docs/manual-setup/supervisor-ai-agent-setup.md`
 - **Intent Management**: `docs/manual-setup/intent-management-workflows.md`
 - **System Prompt**: `docs/supervisor-ai-agent-system-prompt.md`

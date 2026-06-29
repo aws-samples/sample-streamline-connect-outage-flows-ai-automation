@@ -1,8 +1,10 @@
 # Amazon Lex V2 PIN Bot Configuration Guide
 
-## Overview
+> **⚠️ DEPRECATED**: This document describes a component that is no longer used. PIN validation is now handled by the Supervisor AI Agent via the `validate_pin` MCP tool, not a separate Lex bot. The Conversational AI bot (used for voice routing) does NOT perform PIN validation — it routes voice to the AI agent which handles PIN via its tools. See [Supervisor AI Agent Setup](./supervisor-ai-agent-setup.md) for current architecture.
 
-The Amazon Lex V2 PIN Bot is automatically deployed via CDK as part of the Supervisor AI Agent infrastructure. This guide explains the bot configuration, how it works, and how to customize it if needed.
+## Overview (Historical Reference)
+
+The Amazon Lex V2 PIN Bot was originally planned as part of the Supervisor AI Agent infrastructure. This guide is retained for reference only.
 
 ## Bot Architecture
 
@@ -256,7 +258,7 @@ View bot conversation logs in CloudWatch:
 
 ```bash
 aws logs tail /aws/lex/SupervisorPinBot --follow \
-  --profile your-aws-profile \
+  --profile joysl-auto-tfc-Admin \
   --region us-east-1
 ```
 
@@ -275,14 +277,14 @@ aws logs tail /aws/lex/SupervisorPinBot --follow \
 # Check Lambda permissions
 aws lambda get-policy \
   --function-name supervisor-ai-agent-auth \
-  --profile your-aws-profile \
+  --profile joysl-auto-tfc-Admin \
   --region us-east-1
 
 # Check bot alias configuration
 aws lexv2-models describe-bot-alias \
   --bot-id <BOT_ID> \
   --bot-alias-id <ALIAS_ID> \
-  --profile your-aws-profile \
+  --profile joysl-auto-tfc-Admin \
   --region us-east-1
 ```
 
@@ -312,12 +314,12 @@ aws lexv2-models describe-bot-alias \
 # Check secret value
 aws secretsmanager get-secret-value \
   --secret-id supervisor-ai-agent-pin \
-  --profile your-aws-profile \
+  --profile joysl-auto-tfc-Admin \
   --region us-east-1
 
 # Check Lambda logs
 aws logs tail /aws/lambda/supervisor-ai-agent-auth --follow \
-  --profile your-aws-profile \
+  --profile joysl-auto-tfc-Admin \
   --region us-east-1
 ```
 
@@ -368,7 +370,7 @@ After deploying the CDK stack, retrieve the bot information:
 aws cloudformation describe-stacks \
   --stack-name SupervisorAIAgentStack \
   --query 'Stacks[0].Outputs[?OutputKey==`PinBotId` || OutputKey==`PinBotAliasId` || OutputKey==`PinBotAliasArn`]' \
-  --profile your-aws-profile \
+  --profile joysl-auto-tfc-Admin \
   --region us-east-1
 ```
 

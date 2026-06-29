@@ -21,7 +21,7 @@ Check Phone Validation Result
     ├─ Unauthorized → Play Message → Disconnect
     └─ Authorized → Continue
         ↓
-    Get Customer Input (Lex PIN Bot)
+    Get Customer Input (Conversational AI Bot)
         ↓
     Check PIN Validation Result
         ├─ Failed → Play Message → Disconnect
@@ -504,7 +504,7 @@ aws cloudformation describe-stacks \
 
 ## Related Documentation
 
-- [Lex PIN Bot Configuration](./lex-pin-bot-configuration.md)
+- [Supervisor AI Agent Setup](./supervisor-ai-agent-setup.md)
 - [Supervisor AI Agent Setup](./supervisor-ai-agent-setup.md)
 - [Authentication Lambda Implementation](../../lambda/auth/README.md)
 - [Amazon Connect Administrator Guide](https://docs.aws.amazon.com/connect/latest/adminguide/)

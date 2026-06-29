@@ -21,6 +21,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
 from shared.base_handler import BaseLambdaHandler
 from shared.retry_logic import exponential_backoff
+from shared.request_signing import sign_request
 from shared.audit_logging import AuditLogger
 from shared.error_handling import create_error_response
 from shared.metrics_publisher import MetricsPublisher
@@ -1057,7 +1058,7 @@ class AgentManagerHandler(BaseLambdaHandler):
         response = self.lambda_client.invoke(
             FunctionName=self.backup_lambda_arn,
             InvocationType='RequestResponse',
-            Payload=json.dumps(backup_event)
+            Payload=json.dumps(sign_request(backup_event, logger=self.logger))
         )
         
         result = json.loads(response['Payload'].read())
@@ -1238,7 +1239,90 @@ class AgentManagerHandler(BaseLambdaHandler):
             Update result with backup location and test results
         """
         # This will be implemented in subtask 6.8
-        raise NotImplementedError("update_agent operation will be implemented in subtask 6.8")
+        agent_id = event.get('agentId')
+        outage_info = event.get('outageInfo', {})
+        caller_phone_number = event.get('callerPhoneNumber', 'unknown')
+
+        if not agent_id:
+            raise ValueError("Missing required field: agentId")
+        if not outage_info:
+            raise ValueError("Missing required field: outageInfo")
+
+        self.logger.info("Starting update_agent", extra={"agentId": agent_id, "caller": caller_phone_number})
+
+        # Step 1: Get current agent configuration
+        agent_response = self.get_agent({'agentId': agent_id})
+        agent_config = agent_response['configuration']
+        agent_name = agent_response.get('agentName', 'Unknown')
+
+        # Step 2: Backup current configuration
+        from agent_manager.intent_configuration import IntentConfiguration
+        empty_intent_config = IntentConfiguration(agent_id=agent_id, intents=[])
+        backup_result = self._backup_agent_with_intents(
+            agent_id=agent_id,
+            agent_name=agent_name,
+            agent_config=agent_config,
+            intent_config=empty_intent_config,
+            caller_phone_number=caller_phone_number,
+            backup_reason='full-outage-update'
+        )
+
+        # Step 3: Get current prompt text
+        prompt_id = agent_config['orchestrationAIAgentConfiguration']['orchestrationAIPromptId']
+        prompt_response = self._get_ai_prompt_with_retry(prompt_id)
+        original_prompt_text = prompt_response['aiPrompt']['templateConfiguration']['textFullAIPromptEditTemplateConfiguration']['text']
+
+        # Step 4: Generate outage prompt
+        affected = outage_info.get('affectedServices', [])
+        available = outage_info.get('availableServices', [])
+        recovery = outage_info.get('estimatedRecoveryTime', 'unknown')
+
+        outage_instructions = (
+            f"\n\nIMPORTANT OUTAGE NOTICE - ACTIVE NOW\n"
+            f"The following services are currently UNAVAILABLE: {', '.join(affected) if affected else 'multiple services'}.\n"
+            f"The following services ARE STILL AVAILABLE: {', '.join(available) if available else 'limited services'}.\n"
+            f"Estimated recovery time: {recovery}.\n"
+            f"When customers ask about unavailable services, inform them of the outage, "
+            f"apologize for the inconvenience, and guide them to available alternatives.\n"
+            f"Do NOT attempt to process requests for unavailable services.\n"
+        )
+
+        updated_prompt_text = original_prompt_text + outage_instructions
+
+        # Step 5: Validate prompt content
+        from agent_manager.prompt_validator import validate_prompt
+        is_valid, reason = validate_prompt(updated_prompt_text)
+        if not is_valid:
+            raise ValueError(f"Prompt validation failed: {reason}")
+
+        # Step 6: Create new AI Prompt version
+        new_prompt_version = self._create_ai_prompt_version(
+            prompt_id=prompt_id,
+            prompt_text=updated_prompt_text
+        )
+
+        # Step 7: Update AI Agent configuration
+        self._update_ai_agent_configuration(
+            agent_id=agent_id,
+            new_prompt_id=new_prompt_version,
+            agent_config=agent_config
+        )
+
+        self.logger.info("update_agent completed", extra={
+            "agentId": agent_id,
+            "backupLocation": backup_result.get('backupLocation'),
+            "newPromptVersion": new_prompt_version,
+        })
+
+        return {
+            'success': True,
+            'agentId': agent_id,
+            'agentName': agent_name,
+            'backupLocation': backup_result.get('backupLocation', ''),
+            'newPromptVersion': new_prompt_version,
+            'testResults': {'totalTests': 0, 'passed': 0, 'failed': 0, 'message': 'Outage prompt deployed'},
+            'outageInfo': outage_info
+        }
     
     def update_agents(self, event: Dict[str, Any], context: LambdaContext) -> Dict[str, Any]:
         """
