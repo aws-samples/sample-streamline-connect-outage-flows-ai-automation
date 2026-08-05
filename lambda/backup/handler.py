@@ -63,11 +63,14 @@ class BackupHandler(BaseLambdaHandler):
         """
         start_time = datetime.now()
         
-        # Verify inter-Lambda request signature
+        # Verify inter-Lambda request signature (fail closed — security critical)
         from shared.request_signing import verify_request
         if not verify_request(event, logger=self.logger):
-            self.logger.warning("Request signature verification failed")
-            # Continue processing — fail open to avoid breaking existing flows
+            self.logger.error("Request signature verification failed — rejecting request")
+            return {
+                'success': False,
+                'error': 'Request signature verification failed'
+            }
         
         # Validate required fields
         required_fields = ['agentId', 'agentName', 'assistantId', 'configuration', 
@@ -338,8 +341,15 @@ class BackupHandler(BaseLambdaHandler):
 
 
 # Lambda handler function
-# Module-level singleton for Lambda container reuse
-handler_instance = BackupHandler()
+# Module-level singleton for Lambda container reuse (lazy init for test compatibility)
+_handler_instance = None
+
+
+def _get_handler():
+    global _handler_instance
+    if _handler_instance is None:
+        _handler_instance = BackupHandler()
+    return _handler_instance
 
 
 def lambda_handler(event: Dict[str, Any], context: LambdaContext) -> Dict[str, Any]:
@@ -353,4 +363,4 @@ def lambda_handler(event: Dict[str, Any], context: LambdaContext) -> Dict[str, A
     Returns:
         Response dictionary
     """
-    return handler_instance.handler(event, context)
+    return _get_handler().handler(event, context)

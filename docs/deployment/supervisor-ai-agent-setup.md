@@ -31,7 +31,7 @@ Phone Call → Contact Flow → Auth (phone allowlist)
 
 Flow module tools are the bridge between the AI agent and Lambda functions. Each tool module invokes a Lambda with a specific `operation` attribute.
 
-> **Important:** Tool modules must be created via the Connect admin website — the "Save As a Tool" conversion is not available via CLI/API.
+> **Important:** Tool modules must be created via the Connect admin console. The console's "Create module as tool" option sets internal metadata that marks the module as an MCP tool — this metadata cannot be set via the `CreateContactFlowModule` API, which only creates standard flow modules.
 
 ### 1.1 Create Tool Modules
 
@@ -67,12 +67,12 @@ Flow module tools are the bridge between the AI agent and Lambda functions. Each
 |---|---|---|
 | `supervisor-validate-pin-tool` | `validate_pin` | Auth |
 | `supervisor-list-agents-tool` | `list_agents` | Agent Manager |
-| `supervisor-get-agent-config-tool` | `get_agent_config` | Agent Manager |
-| `supervisor-list-agent-intents-tool` | `list_agent_intents` | Agent Manager |
+| `supervisor-get-agent-config-tool` | `get_agent` | Agent Manager |
+| `supervisor-list-agent-intents-tool` | `list_intents` | Agent Manager |
 | `supervisor-disable-intent-tool` | `disable_intent` | Agent Manager |
 | `supervisor-enable-intent-tool` | `enable_intent` | Agent Manager |
 | `supervisor-restore-all-intents-tool` | `restore_all_intents` | Agent Manager |
-| `supervisor-update-agent-prompt-tool` | `update_agent_prompt` | Agent Manager |
+| `supervisor-update-agent-prompt-tool` | `update_agent` | Agent Manager |
 | `supervisor-restore-agent-prompt-tool` | `restore_agent_prompt` | Restore |
 
 > **Note:** The `supervisor-validate-pin-tool` uses `AuthLambdaArn` and accepts `pin` as input. The AI agent's system prompt enforces PIN validation before any other operation.

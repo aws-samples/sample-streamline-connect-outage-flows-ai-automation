@@ -37,8 +37,8 @@ def check_lockout(phone_number: str, logger: Logger = None) -> Tuple[bool, str]:
         return False, ''
     except Exception as e:
         if logger:
-            logger.error('Failed to check lockout', extra={'error': str(e)})
-        return False, ''  # Fail open to avoid blocking legitimate users on DDB errors
+            logger.error('Failed to check lockout — failing closed for security', extra={'error': str(e)})
+        return True, 'Authentication service temporarily unavailable. Please try again later.'  # Fail closed for auth
 
 
 def record_failed_attempt(phone_number: str, logger: Logger = None) -> bool:

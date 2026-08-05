@@ -140,9 +140,9 @@ class PromptGenerator:
         Insert intent management instructions into original prompt.
         
         Strategy:
-        1. Look for a good insertion point (after introduction, before main instructions)
-        2. If no clear point found, append to the end
-        3. Preserve original formatting and structure
+        1. Detect if prompt is YAML (block scalar) and find indentation level
+        2. Insert instructions at the end of the prompt content, indented properly
+        3. Preserve original formatting and YAML structure
         
         Args:
             original_prompt: Original prompt text
@@ -151,30 +151,31 @@ class PromptGenerator:
         Returns:
             Updated prompt with instructions inserted
         """
-        # Try to find insertion point after introduction
-        insertion_markers = [
-            "\n## ",  # Markdown section
-            "\n# ",   # Markdown header
-            "\n\n",   # Double newline (paragraph break)
-        ]
-        
-        insertion_point = -1
-        for marker in insertion_markers:
-            pos = original_prompt.find(marker, 100)  # Skip first 100 chars
-            if pos != -1:
-                insertion_point = pos
+        # Detect indentation level from existing content
+        # Look at non-empty lines to determine the base indent
+        lines = original_prompt.split('\n')
+        indent = ''
+        for line in lines:
+            stripped = line.lstrip()
+            if stripped and line != stripped:
+                # Found an indented line — use its indent level
+                indent = line[:len(line) - len(stripped)]
                 break
         
-        if insertion_point != -1:
-            # Insert at found position
-            updated_prompt = (
-                original_prompt[:insertion_point] +
-                "\n" + instructions + "\n" +
-                original_prompt[insertion_point:]
+        # If instructions are multi-line, indent each line
+        if indent:
+            indented_instructions = '\n'.join(
+                indent + line if line.strip() else line
+                for line in instructions.split('\n')
             )
         else:
-            # Append to end
-            updated_prompt = original_prompt + "\n\n" + instructions
+            indented_instructions = instructions
+        
+        # Append to end of prompt (safest — avoids splitting YAML structure)
+        if original_prompt.endswith('\n'):
+            updated_prompt = original_prompt + indented_instructions + '\n'
+        else:
+            updated_prompt = original_prompt + '\n\n' + indented_instructions + '\n'
         
         return updated_prompt
     

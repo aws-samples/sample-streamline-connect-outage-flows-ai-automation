@@ -107,14 +107,27 @@ class AgentManagerHandler(BaseLambdaHandler):
         
         # Connect contact flow passes attributes under Details.Parameters
         if not operation and 'Details' in event:
-            operation = event.get('Details', {}).get('Parameters', {}).get('operation')
+            params = event.get('Details', {}).get('Parameters', {})
+            operation = params.get('operation')
+            # Flatten Details.Parameters onto event for uniform access
+            for key, value in params.items():
+                if key not in event:
+                    event[key] = value
+        
+        # Coerce JSON string params from Connect (all flow attributes are strings)
+        for key in ('agentIds', 'outageInfo', 'intentNames'):
+            if key in event and isinstance(event[key], str):
+                try:
+                    event[key] = json.loads(event[key])
+                except (json.JSONDecodeError, TypeError):
+                    pass
         
         if not operation:
             raise ValueError("Missing required field: operation")
         
-        # Verify authentication for mutating operations
-        mutating_ops = ['update_agent', 'update_agents', 'disable_intent', 'enable_intent', 'restore']
-        if operation in mutating_ops:
+        # Verify authentication for all operations except read-only ones (deny-by-default)
+        read_only_ops = ['list_agents', 'get_agent', 'list_intents', 'set_session_agent']
+        if operation not in read_only_ops:
             if not self._verify_authentication(event):
                 return {'success': False, 'error': 'Authentication required. Provide a valid authToken.'}
         
@@ -168,7 +181,7 @@ class AgentManagerHandler(BaseLambdaHandler):
             return {'success': 'true', 'agentId': agent_id}
         except Exception as e:
             self.logger.error('Failed to set session agent', extra={'error': str(e), 'sessionId': session_id})
-            return {'success': 'true'}  # Don't block the call on failure
+            return {'success': 'false', 'error': f'Failed to set session agent: {str(e)}'}
 
     def list_agents(self, event: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -262,7 +275,7 @@ class AgentManagerHandler(BaseLambdaHandler):
         Returns:
             API response
         """
-        return self.q_connect.list_ai_agents(**params, logger=self.logger)
+        return self.q_connect.list_ai_agents(**params)
     
     def get_agent(self, event: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -294,6 +307,10 @@ class AgentManagerHandler(BaseLambdaHandler):
             agent = response['aiAgent']
             
             # Extract configuration details
+            modified_time = agent.get('modifiedTime')
+            if hasattr(modified_time, 'isoformat'):
+                modified_time = modified_time.isoformat()
+            
             result = {
                 'success': True,
                 'agentId': agent['aiAgentId'],
@@ -303,7 +320,7 @@ class AgentManagerHandler(BaseLambdaHandler):
                 'visibilityStatus': agent.get('visibilityStatus', 'SAVED'),
                 'description': agent.get('description', ''),
                 'configuration': agent.get('configuration', {}),
-                'modifiedTime': agent.get('modifiedTime')
+                'modifiedTime': modified_time
             }
             
             self.logger.info(
@@ -351,8 +368,7 @@ class AgentManagerHandler(BaseLambdaHandler):
         """
         return self.q_connect.get_ai_agent(
             assistantId=self.assistant_id,
-            aiAgentId=agent_id,
-            logger=self.logger
+            aiAgentId=agent_id
         )
     
     def list_intents(self, event: Dict[str, Any]) -> Dict[str, Any]:
@@ -427,8 +443,8 @@ class AgentManagerHandler(BaseLambdaHandler):
             prompt_response = self._get_ai_prompt_with_retry(prompt_id)
             prompt_text = prompt_response['aiPrompt']['templateConfiguration']['textFullAIPromptEditTemplateConfiguration']['text']
             
-            # Extract intents from prompt
-            intents = self.intent_discovery.extract_intents_from_prompt(prompt_text)
+            # Extract intents from agent (prefers toolConfigurations, falls back to prompt)
+            intents = self.intent_discovery.extract_intents_from_agent(agent_config, prompt_text)
             
             # Create initial Intent_Configuration with all intents enabled
             config = IntentConfiguration(
@@ -485,8 +501,7 @@ class AgentManagerHandler(BaseLambdaHandler):
         """
         return self.q_connect.get_ai_prompt(
             assistantId=self.assistant_id,
-            aiPromptId=prompt_id,
-            logger=self.logger
+            aiPromptId=prompt_id
         )
     
     def disable_intent(self, event: Dict[str, Any], context: LambdaContext) -> Dict[str, Any]:
@@ -545,6 +560,9 @@ class AgentManagerHandler(BaseLambdaHandler):
             agent_response = self.get_agent({'agentId': agent_id})
             agent_config = agent_response['configuration']
             
+            if 'orchestrationAIAgentConfiguration' not in agent_config:
+                raise ValueError(f"Agent {agent_id} is not an ORCHESTRATION agent. Only ORCHESTRATION agents support intent management.")
+            
             # Backup current configuration and Intent_Configuration
             backup_result = self._backup_agent_with_intents(
                 agent_id=agent_id,
@@ -584,13 +602,8 @@ class AgentManagerHandler(BaseLambdaHandler):
             config.version += 1
             self.intent_persistence.save_configuration(config)
             
-            # Test agent (simplified for now - full testing in Tester Lambda)
-            test_results = {
-                'totalTests': 0,
-                'passed': 0,
-                'failed': 0,
-                'message': 'Intent disabled successfully'
-            }
+            # Test agent after modification
+            test_results = self._invoke_tester(agent_id, 'intent-disable')
             
             # Log operation to audit logs
             self.audit_logger.log_intent_operation(
@@ -715,6 +728,9 @@ class AgentManagerHandler(BaseLambdaHandler):
             agent_response = self.get_agent({'agentId': agent_id})
             agent_config = agent_response['configuration']
             
+            if 'orchestrationAIAgentConfiguration' not in agent_config:
+                raise ValueError(f"Agent {agent_id} is not an ORCHESTRATION agent. Only ORCHESTRATION agents support intent management.")
+            
             # Backup current configuration
             backup_result = self._backup_agent_with_intents(
                 agent_id=agent_id,
@@ -754,13 +770,8 @@ class AgentManagerHandler(BaseLambdaHandler):
             config.version += 1
             self.intent_persistence.save_configuration(config)
             
-            # Test agent
-            test_results = {
-                'totalTests': 0,
-                'passed': 0,
-                'failed': 0,
-                'message': 'Intent enabled successfully'
-            }
+            # Test agent after modification
+            test_results = self._invoke_tester(agent_id, 'intent-enable')
             
             # Log operation
             self.audit_logger.log_intent_operation(
@@ -915,6 +926,10 @@ class AgentManagerHandler(BaseLambdaHandler):
             # Get current agent configuration
             agent_response = self.get_agent({'agentId': agent_id})
             agent_config = agent_response['configuration']
+            
+            if 'orchestrationAIAgentConfiguration' not in agent_config:
+                raise ValueError(f"Agent {agent_id} is not an ORCHESTRATION agent. Only ORCHESTRATION agents support intent management.")
+            
             prompt_id = agent_config['orchestrationAIAgentConfiguration']['orchestrationAIPromptId']
             
             # Create new AI Prompt version with original text
@@ -945,13 +960,8 @@ class AgentManagerHandler(BaseLambdaHandler):
                 duration_minutes = int(duration_seconds / 60)
                 outage_duration = f"{duration_minutes} minutes"
             
-            # Test agent
-            test_results = {
-                'totalTests': 0,
-                'passed': 0,
-                'failed': 0,
-                'message': 'All intents restored successfully'
-            }
+            # Test agent after modification
+            test_results = self._invoke_tester(agent_id, 'intent-restore-all')
             
             # Log operation
             self.audit_logger.log_intent_operation(
@@ -1042,12 +1052,27 @@ class AgentManagerHandler(BaseLambdaHandler):
         Returns:
             Backup result with location
         """
+        # Derive prompt fields from agent config for backup
+        prompt_id = agent_config.get('orchestrationAIAgentConfiguration', {}).get('orchestrationAIPromptId', '')
+        current_prompt_text = ''
+        visibility_status = 'PUBLISHED'
+        if prompt_id:
+            try:
+                prompt_response = self._get_ai_prompt_with_retry(prompt_id)
+                current_prompt_text = prompt_response['aiPrompt']['templateConfiguration']['textFullAIPromptEditTemplateConfiguration']['text']
+                visibility_status = prompt_response['aiPrompt'].get('visibilityStatus', 'PUBLISHED')
+            except Exception as e:
+                self.logger.warning(f"Could not fetch prompt for backup: {e}")
+        
         # Invoke Backup Lambda
         backup_event = {
             'agentId': agent_id,
             'agentName': agent_name,
             'assistantId': self.assistant_id,
             'configuration': agent_config,
+            'currentPromptId': prompt_id,
+            'currentPromptText': current_prompt_text,
+            'visibilityStatus': visibility_status,
             'intentConfiguration': intent_config.to_dict(),
             'metadata': {
                 'backupReason': backup_reason,
@@ -1110,25 +1135,31 @@ class AgentManagerHandler(BaseLambdaHandler):
         prompt_text: str
     ) -> Dict[str, Any]:
         """
-        Call CreateAIPromptVersion API with retry logic.
+        Update AI Prompt text then create a versioned snapshot.
         
         Args:
             base_prompt_id: Base AI Prompt ID
             prompt_text: Updated prompt text
             
         Returns:
-            API response
+            CreateAIPromptVersion API response
         """
-        return self.q_connect.create_ai_prompt_version(
+        # Step 1: Update the prompt text on $LATEST
+        self.q_connect.update_ai_prompt(
             assistantId=self.assistant_id,
             aiPromptId=base_prompt_id,
-            modifiedTime=datetime.utcnow().isoformat() + 'Z',
             templateConfiguration={
                 'textFullAIPromptEditTemplateConfiguration': {
                     'text': prompt_text
                 }
             },
-            logger=self.logger
+            visibilityStatus='PUBLISHED'
+        )
+        
+        # Step 2: Snapshot the updated $LATEST as a new version
+        return self.q_connect.create_ai_prompt_version(
+            assistantId=self.assistant_id,
+            aiPromptId=base_prompt_id
         )
     
     def _update_ai_agent_configuration(
@@ -1183,9 +1214,54 @@ class AgentManagerHandler(BaseLambdaHandler):
             assistantId=self.assistant_id,
             aiAgentId=agent_id,
             configuration=configuration,
-            visibilityStatus='PUBLISHED',
-            logger=self.logger
+            visibilityStatus='PUBLISHED'
         )
+    
+    def _invoke_tester(self, agent_id: str, test_reason: str) -> Dict[str, Any]:
+        """
+        Invoke the Tester Lambda to validate agent after changes.
+        
+        Args:
+            agent_id: AI Agent ID to test
+            test_reason: Why the test is being run (e.g., 'intent-disable', 'prompt-update')
+            
+        Returns:
+            Test results dict with totalTests, passed, failed, message
+        """
+        try:
+            test_event = {
+                'agentId': agent_id,
+                'assistantId': self.assistant_id,
+                'testReason': test_reason,
+            }
+            
+            response = self.lambda_client.invoke(
+                FunctionName=self.tester_lambda_arn,
+                InvocationType='RequestResponse',
+                Payload=json.dumps(test_event)
+            )
+            
+            result = json.loads(response['Payload'].read())
+            
+            if result.get('success'):
+                return result.get('testResults', {
+                    'totalTests': 0, 'passed': 0, 'failed': 0, 'message': test_reason
+                })
+            else:
+                self.logger.warning(
+                    "Tester Lambda returned failure",
+                    extra={"error": result.get('error', 'Unknown'), "agentId": agent_id}
+                )
+                return {
+                    'totalTests': 0, 'passed': 0, 'failed': 0,
+                    'message': f"Tester error: {result.get('error', 'Unknown')}"
+                }
+        except Exception as e:
+            self.logger.warning(f"Failed to invoke Tester Lambda: {e}")
+            return {
+                'totalTests': 0, 'passed': 0, 'failed': 0,
+                'message': f"Tester unavailable: {str(e)}"
+            }
     
     def _find_most_recent_backup(self, agent_id: str) -> Optional[str]:
         """
@@ -1255,6 +1331,9 @@ class AgentManagerHandler(BaseLambdaHandler):
         agent_config = agent_response['configuration']
         agent_name = agent_response.get('agentName', 'Unknown')
 
+        if 'orchestrationAIAgentConfiguration' not in agent_config:
+            raise ValueError(f"Agent {agent_id} is not an ORCHESTRATION agent. Only ORCHESTRATION agents can be updated.")
+
         # Step 2: Backup current configuration
         from agent_manager.intent_configuration import IntentConfiguration
         empty_intent_config = IntentConfiguration(agent_id=agent_id, intents=[])
@@ -1289,9 +1368,9 @@ class AgentManagerHandler(BaseLambdaHandler):
 
         updated_prompt_text = original_prompt_text + outage_instructions
 
-        # Step 5: Validate prompt content
+        # Step 5: Validate caller-supplied outage text only (not the existing prompt)
         from agent_manager.prompt_validator import validate_prompt
-        is_valid, reason = validate_prompt(updated_prompt_text)
+        is_valid, reason = validate_prompt(outage_instructions)
         if not is_valid:
             raise ValueError(f"Prompt validation failed: {reason}")
 
@@ -1320,7 +1399,7 @@ class AgentManagerHandler(BaseLambdaHandler):
             'agentName': agent_name,
             'backupLocation': backup_result.get('backupLocation', ''),
             'newPromptVersion': new_prompt_version,
-            'testResults': {'totalTests': 0, 'passed': 0, 'failed': 0, 'message': 'Outage prompt deployed'},
+            'testResults': self._invoke_tester(agent_id, 'prompt-update'),
             'outageInfo': outage_info
         }
     
@@ -1505,15 +1584,14 @@ class AgentManagerHandler(BaseLambdaHandler):
         
         # Publish metrics
         try:
-            metrics_publisher = MetricsPublisher(logger=self.logger)
-            metrics_publisher.publish_metric(
-                metric_name='MultiAgentUpdates',
-                value=1,
-                dimensions={
-                    'TotalAgents': str(len(agent_ids)),
-                    'SuccessfulUpdates': str(successful_updates),
-                    'FailedUpdates': str(failed_updates),
-                    'Result': 'Success' if overall_success else 'PartialFailure'
+            self.logger.info(
+                "Multi-agent update metrics",
+                extra={
+                    'metric_name': 'MultiAgentUpdates',
+                    'total_agents': len(agent_ids),
+                    'successful_updates': successful_updates,
+                    'failed_updates': failed_updates,
+                    'result': 'Success' if overall_success else 'PartialFailure'
                 }
             )
         except Exception as e:

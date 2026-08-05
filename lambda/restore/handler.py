@@ -394,12 +394,24 @@ class RestoreHandler(BaseLambdaHandler):
                 )
                 continue
         
-        # Fallback: Return most recent backup
+        # Fallback: Return most recent backup only if it was readable
+        # If we get here, no backup matched our criteria — but at least some were readable
+        # If ALL reads failed, that's an infrastructure error — don't pick a random backup
         self.logger.warning(
-            "No backup found before intent modifications, using most recent",
+            "No backup found before intent modifications, using most recent readable",
             extra={"backupCount": len(sorted_backups)}
         )
-        return sorted_backups[0] if sorted_backups else None
+        # Try to read the most recent to confirm it's accessible
+        for backup_meta in sorted_backups:
+            try:
+                self._retrieve_backup(backup_meta['key'])
+                return backup_meta
+            except Exception:
+                continue
+        
+        # All reads failed — infrastructure error, don't guess
+        self.logger.error("All backup reads failed — cannot select a backup")
+        return None
     
     def get_intent_configuration_from_backup(
         self,
@@ -587,9 +599,9 @@ class RestoreHandler(BaseLambdaHandler):
             current_prompt_id = backup_data.get('currentPromptId', '')
             base_prompt_id = current_prompt_id.split(':')[0] if ':' in current_prompt_id else current_prompt_id
             
-            # Step 1: Create new AI Prompt version with original text
+            # Step 1: Update AI Prompt with original text, then version it
             self.logger.info(
-                "Creating new AI Prompt version",
+                "Restoring AI Prompt with backup text",
                 extra={
                     "agentId": agent_id,
                     "basePromptId": base_prompt_id,
@@ -597,10 +609,22 @@ class RestoreHandler(BaseLambdaHandler):
                 }
             )
             
-            create_prompt_response = self.q_connect_client.create_ai_prompt_version(
+            # Write the backup text to $LATEST
+            self.q_connect_client.update_ai_prompt(
                 assistantId=assistant_id,
                 aiPromptId=base_prompt_id,
-                modifiedTime=datetime.now(timezone.utc)
+                templateConfiguration={
+                    'textFullAIPromptEditTemplateConfiguration': {
+                        'text': original_prompt_text
+                    }
+                },
+                visibilityStatus='PUBLISHED'
+            )
+            
+            # Snapshot the restored $LATEST as a new version
+            create_prompt_response = self.q_connect_client.create_ai_prompt_version(
+                assistantId=assistant_id,
+                aiPromptId=base_prompt_id
             )
             
             new_prompt_version = create_prompt_response['aiPrompt']['aiPromptArn']

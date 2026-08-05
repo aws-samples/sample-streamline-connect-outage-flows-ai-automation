@@ -45,14 +45,14 @@ export class SupervisorAIAgentStack extends cdk.Stack {
           }
           
           // Create venv
-          execFileSync('python3', ['-m', 'venv', venvDir], { cwd: lambdaDir, stdio: 'inherit' });
+          execFileSync('python3', ['-m', 'venv', venvDir], { cwd: lambdaDir, stdio: 'pipe' });
           
           // Install dependencies
           const pipPath = path.join(venvDir, 'bin', 'pip');
-          execFileSync(pipPath, ['install', '-r', path.join(safeFunctionDir, 'requirements.txt'), '-t', outputDir], { cwd: lambdaDir, stdio: 'inherit' });
+          execFileSync(pipPath, ['install', '-r', path.join(safeFunctionDir, 'requirements.txt'), '-t', outputDir], { cwd: lambdaDir, stdio: 'pipe' });
           
           // Copy Lambda code
-          execFileSync('cp', ['-r', safeFunctionDir, 'shared', path.join(outputDir, '/')], { cwd: lambdaDir, stdio: 'inherit' });
+          execFileSync('cp', ['-r', safeFunctionDir, 'shared', path.join(outputDir, '/')], { cwd: lambdaDir, stdio: 'pipe' });
           
           // Cleanup venv
           execFileSync('rm', ['-rf', venvDir], { cwd: lambdaDir });
@@ -73,7 +73,9 @@ export class SupervisorAIAgentStack extends cdk.Stack {
 
     const qConnectAssistantId = new cdk.CfnParameter(this, 'QConnectAssistantId', {
       type: 'String',
-      description: 'Amazon Q in Connect assistant ID',
+      description: 'Amazon Q in Connect assistant ID (must be the assistant associated with your Connect instance — only one assistant per instance is supported)',
+      allowedPattern: '[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}',
+      constraintDescription: 'Must be a valid UUID (e.g., 611a0213-7a75-4b89-b4a0-c0c37f2ee234)',
     });
 
     const productionAgentIds = new cdk.CfnParameter(this, 'ProductionAgentIds', {
@@ -353,6 +355,31 @@ export class SupervisorAIAgentStack extends cdk.Stack {
       })
     );
 
+    // Grant Q Connect permissions for prompt restore operations
+    restoreLambdaRole.addToPolicy(
+      new iam.PolicyStatement({
+        effect: iam.Effect.ALLOW,
+        actions: [
+          'qconnect:GetAIPrompt',
+          'qconnect:UpdateAIPrompt',
+          'qconnect:CreateAIPromptVersion',
+          'qconnect:UpdateAIAgent',
+          'qconnect:GetAIAgent',
+          'wisdom:GetAIPrompt',
+          'wisdom:UpdateAIPrompt',
+          'wisdom:CreateAIPromptVersion',
+          'wisdom:UpdateAIAgent',
+          'wisdom:GetAIAgent',
+        ],
+        resources: [
+          `arn:aws:qconnect:${this.region}:${this.account}:assistant/${qConnectAssistantId.valueAsString}`,
+          `arn:aws:qconnect:${this.region}:${this.account}:assistant/${qConnectAssistantId.valueAsString}/*`,
+          `arn:aws:wisdom:${this.region}:${this.account}:assistant/${qConnectAssistantId.valueAsString}`,
+          `arn:aws:wisdom:${this.region}:${this.account}:assistant/${qConnectAssistantId.valueAsString}/*`,
+        ],
+      })
+    );
+
     // Tester Lambda Role
     const testerLambdaRole = new iam.Role(this, 'TesterLambdaRole', {
       assumedBy: new iam.ServicePrincipal('lambda.amazonaws.com'),
@@ -375,10 +402,18 @@ export class SupervisorAIAgentStack extends cdk.Stack {
         actions: [
           'qconnect:CreateSession',
           'qconnect:GetRecommendations',
+          'qconnect:QueryAssistant',
+          'qconnect:TagResource',
+          'wisdom:CreateSession',
+          'wisdom:GetRecommendations',
+          'wisdom:QueryAssistant',
+          'wisdom:TagResource',
         ],
         resources: [
           `arn:aws:qconnect:${this.region}:${this.account}:assistant/${qConnectAssistantId.valueAsString}`,
           `arn:aws:qconnect:${this.region}:${this.account}:assistant/${qConnectAssistantId.valueAsString}/*`,
+          `arn:aws:wisdom:${this.region}:${this.account}:assistant/${qConnectAssistantId.valueAsString}`,
+          `arn:aws:wisdom:${this.region}:${this.account}:assistant/${qConnectAssistantId.valueAsString}/*`,
         ],
       })
     );

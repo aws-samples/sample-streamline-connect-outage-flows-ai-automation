@@ -11,6 +11,7 @@ from typing import Dict, Any, List, Optional
 from dataclasses import dataclass, asdict, field
 from datetime import datetime, timezone
 from aws_lambda_powertools.utilities.typing import LambdaContext
+from botocore.exceptions import ClientError
 
 import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
@@ -348,6 +349,26 @@ class TesterHandler(BaseLambdaHandler):
                 test_result = self._evaluate_response(test_query, response)
                 results.append(test_result)
                 
+            except ClientError as e:
+                error_code = e.response.get('Error', {}).get('Code', 'Unknown')
+                self.logger.error(
+                    "Infrastructure error during test query",
+                    extra={
+                        "agentId": agent_id,
+                        "query": test_query.query,
+                        "errorCode": error_code,
+                        "error": str(e)
+                    }
+                )
+                # Infrastructure errors are NOT agent behavioral failures
+                results.append(TestResult(
+                    query=test_query.query,
+                    expected_behavior=test_query.expected_behavior,
+                    actual_response=f"INFRA_ERROR: {error_code} - {str(e)}",
+                    passed=False,
+                    critical=False,  # Infra errors don't count as critical agent failures
+                    evaluation_details={"error": str(e), "error_type": "infrastructure", "error_code": error_code}
+                ))
             except Exception as e:
                 self.logger.error(
                     "Failed to execute test query",
@@ -364,7 +385,7 @@ class TesterHandler(BaseLambdaHandler):
                     actual_response=f"ERROR: {str(e)}",
                     passed=False,
                     critical=test_query.critical,
-                    evaluation_details={"error": str(e)}
+                    evaluation_details={"error": str(e), "error_type": "test_execution"}
                 ))
         
         return results
@@ -405,8 +426,8 @@ class TesterHandler(BaseLambdaHandler):
             if results:
                 # Get the first result's document text
                 document = results[0].get('document', {})
-                content = document.get('content', {})
-                text = content.get('text', '')
+                excerpt = document.get('excerpt', {})
+                text = excerpt.get('text', '')
                 return text
             
             return ""

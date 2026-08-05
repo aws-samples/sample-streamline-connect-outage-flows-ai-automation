@@ -12,7 +12,7 @@ from agent_manager.intent_configuration import Intent
 
 
 class IntentDiscovery:
-    """Discovers intents from AI Agent prompts."""
+    """Discovers intents from AI Agent tool configurations or prompt text."""
     
     def __init__(self, logger: Logger):
         """
@@ -22,6 +22,66 @@ class IntentDiscovery:
             logger: Logger instance
         """
         self.logger = logger
+    
+    def extract_intents_from_agent(self, agent_config: Dict, prompt_text: str = '') -> List[Intent]:
+        """
+        Extract intents from agent configuration, preferring toolConfigurations.
+        
+        Falls back to prompt text scraping only if toolConfigurations is empty.
+        
+        Args:
+            agent_config: Agent configuration dict from GetAIAgent API
+            prompt_text: AI Prompt text (fallback only)
+            
+        Returns:
+            List of Intent objects (all enabled by default)
+        """
+        # Primary: extract from toolConfigurations (structural, accurate)
+        intents = self._extract_from_tool_configurations(agent_config)
+        if intents:
+            self.logger.info(
+                "Discovered intents from toolConfigurations",
+                extra={"intentCount": len(intents)}
+            )
+            return intents
+        
+        # Fallback: regex scraping (less reliable)
+        if prompt_text:
+            self.logger.info("No toolConfigurations found, falling back to prompt text scraping")
+            return self.extract_intents_from_prompt(prompt_text)
+        
+        return [Intent(name="general_assistance", description="General customer assistance", enabled=True)]
+    
+    def _extract_from_tool_configurations(self, agent_config: Dict) -> List[Intent]:
+        """
+        Extract intents from agent's toolConfigurations (ORCHESTRATION agents).
+        
+        Args:
+            agent_config: Agent configuration from GetAIAgent API
+            
+        Returns:
+            List of Intent objects
+        """
+        intents = []
+        
+        # Navigate to tool configurations
+        orch_config = agent_config.get('orchestrationAIAgentConfiguration', {})
+        tool_configs = orch_config.get('toolConfigurations', [])
+        
+        for tool in tool_configs:
+            tool_name = tool.get('name', '')
+            tool_description = tool.get('description', tool_name)
+            
+            if tool_name:
+                intent_name = self._normalize_intent_name(tool_name)
+                if intent_name:
+                    intents.append(Intent(
+                        name=intent_name,
+                        description=tool_description,
+                        enabled=True
+                    ))
+        
+        return intents
     
     def extract_intents_from_prompt(self, prompt_text: str) -> List[Intent]:
         """

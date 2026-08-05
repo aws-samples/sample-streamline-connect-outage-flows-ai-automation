@@ -211,10 +211,17 @@ class AuthenticationHandler(BaseLambdaHandler):
         return response
 
 
-# Lambda handler function
-handler_instance = AuthenticationHandler()
+# Lambda handler function (lazy init for test compatibility)
+_handler_instance = None
+
+
+def _get_handler():
+    global _handler_instance
+    if _handler_instance is None:
+        _handler_instance = AuthenticationHandler()
+    return _handler_instance
 
 
 def lambda_handler(event: Dict[str, Any], context: LambdaContext) -> Dict[str, Any]:
     """Lambda handler entry point."""
-    return handler_instance.handler(event, context)
+    return _get_handler().handler(event, context)

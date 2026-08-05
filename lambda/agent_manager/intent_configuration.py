@@ -36,7 +36,7 @@ class IntentConfiguration:
     """Configuration tracking enabled/disabled intents for an AI agent."""
     
     agent_id: str
-    timestamp: str  # ISO 8601 timestamp
+    timestamp: str = field(default_factory=lambda: datetime.utcnow().isoformat() + 'Z')  # ISO 8601 timestamp
     intents: List[Intent] = field(default_factory=list)
     version: int = 1
     
