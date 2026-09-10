@@ -1,0 +1,238 @@
+{
+    "version": "1.0",
+    "description": "Default test query configuration for AI agent validation",
+    "testQueries": [
+        {
+            "query": "I need to make a payment",
+            "expectedBehavior": "SHOULD_EXPLAIN_UNAVAILABLE",
+            "keywords": [
+                "unavailable",
+                "currently",
+                "apologize",
+                "temporarily",
+                "not available"
+            ],
+            "critical": true,
+            "category": "payment",
+            "description": "Test that payment requests are properly rejected during outage"
+        },
+        {
+            "query": "Can I transfer money?",
+            "expectedBehavior": "SHOULD_EXPLAIN_UNAVAILABLE",
+            "keywords": [
+                "unavailable",
+                "currently",
+                "apologize",
+                "temporarily",
+                "not available"
+            ],
+            "critical": true,
+            "category": "payment",
+            "description": "Test that money transfer requests are properly rejected during outage"
+        },
+        {
+            "query": "I want to send money to someone",
+            "expectedBehavior": "SHOULD_EXPLAIN_UNAVAILABLE",
+            "keywords": [
+                "unavailable",
+                "currently",
+                "apologize",
+                "temporarily",
+                "not available"
+            ],
+            "critical": true,
+            "category": "payment",
+            "description": "Test that send money requests are properly rejected during outage"
+        },
+        {
+            "query": "What's my account balance?",
+            "expectedBehavior": "SHOULD_HANDLE_NORMALLY",
+            "keywords": [
+                "balance",
+                "account",
+                "check",
+                "available"
+            ],
+            "critical": false,
+            "category": "inquiry",
+            "description": "Test that balance inquiries are handled normally"
+        },
+        {
+            "query": "Can you check my balance?",
+            "expectedBehavior": "SHOULD_HANDLE_NORMALLY",
+            "keywords": [
+                "balance",
+                "account",
+                "check",
+                "available"
+            ],
+            "critical": false,
+            "category": "inquiry",
+            "description": "Test that balance check requests are handled normally"
+        },
+        {
+            "query": "What's my order status?",
+            "expectedBehavior": "SHOULD_HANDLE_NORMALLY",
+            "keywords": [
+                "order",
+                "status",
+                "check",
+                "tracking"
+            ],
+            "critical": false,
+            "category": "inquiry",
+            "description": "Test that order status inquiries are handled normally"
+        },
+        {
+            "query": "Where is my package?",
+            "expectedBehavior": "SHOULD_HANDLE_NORMALLY",
+            "keywords": [
+                "package",
+                "tracking",
+                "delivery",
+                "status"
+            ],
+            "critical": false,
+            "category": "inquiry",
+            "description": "Test that package tracking inquiries are handled normally"
+        },
+        {
+            "query": "What else can I do?",
+            "expectedBehavior": "SHOULD_OFFER_ALTERNATIVE",
+            "keywords": [
+                "can",
+                "available",
+                "help",
+                "alternative",
+                "service"
+            ],
+            "critical": false,
+            "category": "alternative",
+            "description": "Test that alternative suggestions are offered"
+        },
+        {
+            "query": "What services are available?",
+            "expectedBehavior": "SHOULD_OFFER_ALTERNATIVE",
+            "keywords": [
+                "available",
+                "can",
+                "help",
+                "service",
+                "offer"
+            ],
+            "critical": false,
+            "category": "alternative",
+            "description": "Test that available services are listed"
+        },
+        {
+            "query": "What can you help me with?",
+            "expectedBehavior": "SHOULD_OFFER_ALTERNATIVE",
+            "keywords": [
+                "help",
+                "can",
+                "available",
+                "assist",
+                "service"
+            ],
+            "critical": false,
+            "category": "alternative",
+            "description": "Test that help options are provided"
+        },
+        {
+            "query": "I need help with something else",
+            "expectedBehavior": "SHOULD_OFFER_ALTERNATIVE",
+            "keywords": [
+                "help",
+                "available",
+                "can",
+                "alternative",
+                "other"
+            ],
+            "critical": false,
+            "category": "alternative",
+            "description": "Test that alternative help options are suggested"
+        }
+    ],
+    "intentTestQueries": {
+        "check_balance": {
+            "testQuery": "What's my account balance?",
+            "expectedBehaviorWhenEnabled": "SHOULD_HANDLE_NORMALLY",
+            "expectedBehaviorWhenDisabled": "SHOULD_EXPLAIN_UNAVAILABLE",
+            "keywords": [
+                "balance",
+                "account"
+            ]
+        },
+        "transfer_funds": {
+            "testQuery": "I want to transfer money",
+            "expectedBehaviorWhenEnabled": "SHOULD_HANDLE_NORMALLY",
+            "expectedBehaviorWhenDisabled": "SHOULD_EXPLAIN_UNAVAILABLE",
+            "keywords": [
+                "transfer",
+                "money"
+            ]
+        },
+        "change_pin": {
+            "testQuery": "I need to change my PIN",
+            "expectedBehaviorWhenEnabled": "SHOULD_HANDLE_NORMALLY",
+            "expectedBehaviorWhenDisabled": "SHOULD_EXPLAIN_UNAVAILABLE",
+            "keywords": [
+                "pin",
+                "change"
+            ]
+        },
+        "order_status": {
+            "testQuery": "What's my order status?",
+            "expectedBehaviorWhenEnabled": "SHOULD_HANDLE_NORMALLY",
+            "expectedBehaviorWhenDisabled": "SHOULD_EXPLAIN_UNAVAILABLE",
+            "keywords": [
+                "order",
+                "status"
+            ]
+        },
+        "track_package": {
+            "testQuery": "Where is my package?",
+            "expectedBehaviorWhenEnabled": "SHOULD_HANDLE_NORMALLY",
+            "expectedBehaviorWhenDisabled": "SHOULD_EXPLAIN_UNAVAILABLE",
+            "keywords": [
+                "package",
+                "tracking"
+            ]
+        }
+    },
+    "behaviorCategories": {
+        "SHOULD_EXPLAIN_UNAVAILABLE": {
+            "description": "Agent should explain that the service is temporarily unavailable",
+            "requiredKeywords": [
+                "unavailable",
+                "temporarily",
+                "currently",
+                "apologize",
+                "not available"
+            ],
+            "minimumMatches": 1
+        },
+        "SHOULD_HANDLE_NORMALLY": {
+            "description": "Agent should handle the request normally without mentioning unavailability",
+            "forbiddenKeywords": [
+                "unavailable",
+                "currently unavailable",
+                "apologize",
+                "temporarily"
+            ],
+            "requiresResponse": true
+        },
+        "SHOULD_OFFER_ALTERNATIVE": {
+            "description": "Agent should suggest alternative services or actions",
+            "requiredKeywords": [
+                "available",
+                "can",
+                "help",
+                "alternative",
+                "service",
+                "offer"
+            ],
+            "minimumMatches": 1
+        }
+    }
+}
