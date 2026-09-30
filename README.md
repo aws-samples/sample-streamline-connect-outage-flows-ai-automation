@@ -3,7 +3,7 @@
 A serverless, phone-based system that enables operations managers to update Amazon Connect AI agent prompts during service outages through natural language conversation. Reduces outage response time from 15-20 minutes to under 2 minutes.
 
 **Note**
-One design note: this demo switches personas by overwriting the AI agent's behavior. The newly announced [Amazon Connect Customer agent-to-agent (A2A) collaboration](https://aws.amazon.com/about-aws/whats-new/2026/09/Amazon-Connect-Customer-A2A/) feature offers a cleaner path to a similar goal, letting a primary agent delegate to specialized collaborating agents during a live interaction instead of overwriting the running agent's configuration.
+This demo switches personas by overwriting the AI agent's behavior. The newly announced [Amazon Connect Customer agent-to-agent (A2A) collaboration](https://aws.amazon.com/about-aws/whats-new/2026/09/Amazon-Connect-Customer-A2A/) feature offers a cleaner path to a similar goal, letting a primary agent delegate to specialized collaborating agents during a live interaction instead of overwriting the running agent's configuration.
 This post is intended as an art-of-the-possible exploration, a demonstration of what conversational, voice-driven control over production AI agents can look like.
 
 
